@@ -700,6 +700,8 @@ static int sn65dsi83_probe(struct i2c_client *client,
 	struct sn65dsi83 *ctx;
 	int ret;
 
+	dev_err(dev, "sn65dsi83_probe\n");
+	
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
