@@ -33,6 +33,7 @@
 #include <linux/of_device.h>
 #include <linux/of_graph.h>
 #include <linux/regmap.h>
+#include <linux/regulator/consumer.h>
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_bridge.h>
@@ -140,10 +141,11 @@ struct sn65dsi83 {
 	struct device			*dev;
 	struct regmap			*regmap;
 	struct device_node		*host_node;
-	struct mipi_dsi_device		*dsi;
+	struct mipi_dsi_device	*dsi;
 	struct drm_bridge		*panel_bridge;
 	struct gpio_desc		*enable_gpio;
-	int				dsi_lanes;
+	struct regulator		*vcc;
+	int					dsi_lanes;
 	bool				lvds_dual_link;
 	bool				lvds_dual_link_even_odd_swap;
 };
@@ -245,63 +247,21 @@ static int sn65dsi83_attach(struct drm_bridge *bridge,
 			    enum drm_bridge_attach_flags flags)
 {
 	struct sn65dsi83 *ctx = bridge_to_sn65dsi83(bridge);
-	struct device *dev = ctx->dev;
-	struct mipi_dsi_device *dsi;
-	struct mipi_dsi_host *host;
-	int ret = 0;
-
-	const struct mipi_dsi_device_info info = {
-		.type = "sn65dsi83",
-		.channel = 0,
-		.node = NULL,
-	};
-
-	host = of_find_mipi_dsi_host_by_node(ctx->host_node);
-	if (!host) {
-		dev_err(dev, "failed to find dsi host\n");
-		return -EPROBE_DEFER;
-	}
-
-	dsi = mipi_dsi_device_register_full(host, &info);
-	if (IS_ERR(dsi)) {
-		return dev_err_probe(dev, PTR_ERR(dsi),
-				     "failed to create dsi device\n");
-	}
-
-	ctx->dsi = dsi;
-
-	dsi->lanes = ctx->dsi_lanes;
-	dsi->format = MIPI_DSI_FMT_RGB888;
-	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST;
-
-	ret = mipi_dsi_attach(dsi);
-	if (ret < 0) {
-		dev_err(dev, "failed to attach dsi to host\n");
-		goto err_dsi_attach;
-	}
-
+	dev_err(ctx->dev, "sn65dsi83_attach\n");
+	
 	return drm_bridge_attach(bridge->encoder, ctx->panel_bridge,
 				 &ctx->bridge, flags);
-
-err_dsi_attach:
-	mipi_dsi_device_unregister(dsi);
-	return ret;
 }
 
-static void sn65dsi83_atomic_pre_enable(struct drm_bridge *bridge,
-					struct drm_bridge_state *old_bridge_state)
+static void sn65dsi83_detach(struct drm_bridge *bridge)
 {
 	struct sn65dsi83 *ctx = bridge_to_sn65dsi83(bridge);
+	dev_err(ctx->dev, "sn65dsi83_detach\n");
+	
+	if (!ctx->dsi)
+		return;
 
-	/*
-	 * Reset the chip, pull EN line low for t_reset=10ms,
-	 * then high for t_en=1ms.
-	 */
-	regcache_mark_dirty(ctx->regmap);
-	gpiod_set_value(ctx->enable_gpio, 0);
-	usleep_range(10000, 11000);
-	gpiod_set_value(ctx->enable_gpio, 1);
-	usleep_range(1000, 1100);
+	ctx->dsi = NULL;
 }
 
 static u8 sn65dsi83_get_lvds_range(struct sn65dsi83 *ctx,
@@ -321,8 +281,21 @@ static u8 sn65dsi83_get_lvds_range(struct sn65dsi83 *ctx,
 	 * the clock to 25..154 MHz, the range calculation can be simplified
 	 * as follows:
 	 */
+	
 	int mode_clock = mode->clock;
+	dev_err(ctx->dev, "sn65dsi83_get_lvds_range clock = %d\n", mode->clock);
+	dev_err(ctx->dev, "sn65dsi83_get_lvds_range hdisplay = %d\n", mode->hdisplay);
+	dev_err(ctx->dev, "sn65dsi83_get_lvds_range hsync_start = %d\n", mode->hsync_start);
+	dev_err(ctx->dev, "sn65dsi83_get_lvds_range hsync_end = %d\n", mode->hsync_end);
+	dev_err(ctx->dev, "sn65dsi83_get_lvds_range htotal = %d\n", mode->htotal);
+	dev_err(ctx->dev, "sn65dsi83_get_lvds_range hskew = %d\n", mode->hskew);
+	dev_err(ctx->dev, "sn65dsi83_get_lvds_range vdisplay = %d\n", mode->vdisplay);
+	dev_err(ctx->dev, "sn65dsi83_get_lvds_range vsync_start = %d\n", mode->vsync_start);
+	dev_err(ctx->dev, "sn65dsi83_get_lvds_range vsync_end = %d\n", mode->vsync_end);
+	dev_err(ctx->dev, "sn65dsi83_get_lvds_range vtotal = %d\n", mode->vtotal);
+	dev_err(ctx->dev, "sn65dsi83_get_lvds_range vscan = %d\n", mode->vscan);
 
+	
 	if (ctx->lvds_dual_link)
 		mode_clock /= 2;
 
@@ -343,7 +316,7 @@ static u8 sn65dsi83_get_dsi_range(struct sn65dsi83 *ctx,
 	 * 0x65 through 0xFF - Reserved
 	 * which is DSI clock in 5 MHz steps, clamped to 40..500 MHz.
 	 * The DSI clock are calculated as:
-	 *  DSI_CLK = mode clock * bpp / dsi_data_lanes / 2
+	 * DSI_CLK = mode clock * bpp / dsi_data_lanes / 2
 	 * the 2 is there because the bus is DDR.
 	 */
 	return DIV_ROUND_UP(clamp((unsigned int)mode->clock *
@@ -364,8 +337,8 @@ static u8 sn65dsi83_get_dsi_div(struct sn65dsi83 *ctx)
 	return dsi_div - 1;
 }
 
-static void sn65dsi83_atomic_enable(struct drm_bridge *bridge,
-				    struct drm_bridge_state *old_bridge_state)
+static void sn65dsi83_atomic_pre_enable(struct drm_bridge *bridge,
+					struct drm_bridge_state *old_bridge_state)
 {
 	struct sn65dsi83 *ctx = bridge_to_sn65dsi83(bridge);
 	struct drm_atomic_state *state = old_bridge_state->base.state;
@@ -380,6 +353,17 @@ static void sn65dsi83_atomic_enable(struct drm_bridge *bridge,
 	__le16 le16val;
 	u16 val;
 	int ret;
+
+	dev_err(ctx->dev, "sn65dsi83_atomic_pre_enable\n");
+	ret = regulator_enable(ctx->vcc);
+	if (ret) {
+		dev_err(ctx->dev, "Failed to enable vcc: %d\n", ret);
+		return;
+	}
+
+	/* Deassert reset */
+	gpiod_set_value(ctx->enable_gpio, 1);
+	usleep_range(1000, 1100);
 
 	/* Get the LVDS format from the bridge state. */
 	bridge_state = drm_atomic_get_new_bridge_state(state, bridge);
@@ -520,25 +504,26 @@ static void sn65dsi83_atomic_enable(struct drm_bridge *bridge,
 	/* Clear all errors that got asserted during initialization. */
 	regmap_read(ctx->regmap, REG_IRQ_STAT, &pval);
 	regmap_write(ctx->regmap, REG_IRQ_STAT, pval);
+	dev_err(ctx->dev, "sn65dsi83_atomic_pre_enable - end\n");
 }
 
 static void sn65dsi83_atomic_disable(struct drm_bridge *bridge,
 				     struct drm_bridge_state *old_bridge_state)
 {
 	struct sn65dsi83 *ctx = bridge_to_sn65dsi83(bridge);
+	int ret;
 
-	/* Clear reset, disable PLL */
-	regmap_write(ctx->regmap, REG_RC_RESET, 0x00);
-	regmap_write(ctx->regmap, REG_RC_PLL_EN, 0x00);
-}
-
-static void sn65dsi83_atomic_post_disable(struct drm_bridge *bridge,
-					  struct drm_bridge_state *old_bridge_state)
-{
-	struct sn65dsi83 *ctx = bridge_to_sn65dsi83(bridge);
-
-	/* Put the chip in reset, pull EN line low. */
+	/* Put the chip in reset, pull EN line low, and assure 10ms reset low timing. */
+	dev_err(ctx->dev, "sn65dsi83_atomic_disable\n");
+	
 	gpiod_set_value(ctx->enable_gpio, 0);
+	usleep_range(10000, 11000);
+
+	ret = regulator_disable(ctx->vcc);
+	if (ret)
+		dev_err(ctx->dev, "Failed to disable vcc: %d\n", ret);
+
+	regcache_mark_dirty(ctx->regmap);
 }
 
 static enum drm_mode_status
@@ -583,10 +568,9 @@ sn65dsi83_atomic_get_input_bus_fmts(struct drm_bridge *bridge,
 
 static const struct drm_bridge_funcs sn65dsi83_funcs = {
 	.attach			= sn65dsi83_attach,
+	.detach			= sn65dsi83_detach,
 	.atomic_pre_enable	= sn65dsi83_atomic_pre_enable,
-	.atomic_enable		= sn65dsi83_atomic_enable,
 	.atomic_disable		= sn65dsi83_atomic_disable,
-	.atomic_post_disable	= sn65dsi83_atomic_post_disable,
 	.mode_valid		= sn65dsi83_mode_valid,
 
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
@@ -607,8 +591,10 @@ static int sn65dsi83_parse_dt(struct sn65dsi83 *ctx, enum sn65dsi83_model model)
 	ctx->dsi_lanes = of_property_count_u32_elems(endpoint, "data-lanes");
 	ctx->host_node = of_graph_get_remote_port_parent(endpoint);
 	of_node_put(endpoint);
+	dev_err(dev, "sn65dsi83_parse_dt\n");
+	
 
-	if (ctx->dsi_lanes <= 0 || ctx->dsi_lanes > 4) {
+	if (ctx->dsi_lanes < 0 || ctx->dsi_lanes > 4) {
 		ret = -EINVAL;
 		goto err_put_node;
 	}
@@ -653,11 +639,57 @@ static int sn65dsi83_parse_dt(struct sn65dsi83 *ctx, enum sn65dsi83_model model)
 
 	ctx->panel_bridge = panel_bridge;
 
+	ctx->vcc = devm_regulator_get(dev, "vcc");
+	if (IS_ERR(ctx->vcc))
+		return dev_err_probe(dev, PTR_ERR(ctx->vcc),
+				     "Failed to get supply 'vcc'\n");
+
 	return 0;
 
 err_put_node:
 	of_node_put(ctx->host_node);
 	return ret;
+}
+
+static int sn65dsi83_host_attach(struct sn65dsi83 *ctx)
+{
+	struct device *dev = ctx->dev;
+	struct mipi_dsi_device *dsi;
+	struct mipi_dsi_host *host;
+	const struct mipi_dsi_device_info info = {
+		.type = "sn65dsi83",
+		.channel = 0,
+		.node = NULL,
+	};
+	int ret;
+
+	dev_err(dev, "host_node: %s\n", ctx->host_node->full_name);
+	host = of_find_mipi_dsi_host_by_node(ctx->host_node);
+	if (!host) {
+		dev_err(dev, "failed to find dsi host\n");
+		return -EPROBE_DEFER;
+	}
+
+	dsi = devm_mipi_dsi_device_register_full(dev, host, &info);
+	if (IS_ERR(dsi))
+		return dev_err_probe(dev, PTR_ERR(dsi),
+				     "failed to create dsi device\n");
+
+	ctx->dsi = dsi;
+
+	dsi->lanes = ctx->dsi_lanes;
+	dev_err(dev, "number of dsi lanes: %d\n", ctx->dsi_lanes);
+	
+	dsi->format = MIPI_DSI_FMT_RGB888;
+	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST;
+
+	ret = devm_mipi_dsi_attach(dev, dsi);
+	if (ret < 0) {
+		dev_err(dev, "failed to attach dsi to host: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
 }
 
 static int sn65dsi83_probe(struct i2c_client *client,
@@ -681,9 +713,13 @@ static int sn65dsi83_probe(struct i2c_client *client,
 		model = id->driver_data;
 	}
 
-	ctx->enable_gpio = devm_gpiod_get(ctx->dev, "enable", GPIOD_OUT_LOW);
+	/* Put the chip in reset, pull EN line low, and assure 10ms reset low timing. */
+	ctx->enable_gpio = devm_gpiod_get_optional(ctx->dev, "enable",
+						   GPIOD_OUT_LOW);
 	if (IS_ERR(ctx->enable_gpio))
 		return PTR_ERR(ctx->enable_gpio);
+
+	usleep_range(10000, 11000);
 
 	ret = sn65dsi83_parse_dt(ctx, model);
 	if (ret)
@@ -700,10 +736,17 @@ static int sn65dsi83_probe(struct i2c_client *client,
 
 	ctx->bridge.funcs = &sn65dsi83_funcs;
 	ctx->bridge.of_node = dev->of_node;
+	ctx->bridge.pre_enable_upstream_first = true;
 	drm_bridge_add(&ctx->bridge);
+
+	ret = sn65dsi83_host_attach(ctx);
+	if (ret)
+		goto err_remove_bridge;
 
 	return 0;
 
+err_remove_bridge:
+	drm_bridge_remove(&ctx->bridge);
 err_put_node:
 	of_node_put(ctx->host_node);
 	return ret;
@@ -713,8 +756,6 @@ static int sn65dsi83_remove(struct i2c_client *client)
 {
 	struct sn65dsi83 *ctx = i2c_get_clientdata(client);
 
-	mipi_dsi_detach(ctx->dsi);
-	mipi_dsi_device_unregister(ctx->dsi);
 	drm_bridge_remove(&ctx->bridge);
 	of_node_put(ctx->host_node);
 
