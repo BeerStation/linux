@@ -2912,11 +2912,11 @@ static const struct display_timing cdtech_s101hwx34hd_timing = {
 	.hactive = { 1280, 1280, 1280 },
 	.hfront_porch = { 12, 72, 132 },
 	.hback_porch = { 28, 28, 28 },
-	.hsync_len = { 20, 20, 20 },
+	.hsync_len = { 40, 40, 40 },
 	.vactive = { 800, 800, 800},
 	.vfront_porch = { 1, 15, 49 },
 	.vback_porch = { 3, 3, 3 },
-	.vsync_len = { 10, 10, 10 },
+	.vsync_len = { 20, 20, 20 },
 };
 
 static const struct panel_desc cdtech_s101hwx34hd = {
@@ -2944,11 +2944,11 @@ static const struct display_timing cdtech_s101hwx34ed_timing = {
 	.hactive = { 1280, 1280, 1280 },
 	.hfront_porch = { 12, 72, 132 },
 	.hback_porch = { 28, 28, 28 },
-	.hsync_len = { 20, 20, 20 },
+	.hsync_len = { 40, 40, 40 },
 	.vactive = { 800, 800, 800},
 	.vfront_porch = { 1, 15, 49 },
 	.vback_porch = { 3, 3, 3 },
-	.vsync_len = { 10, 10, 10 },
+	.vsync_len = { 20, 20, 20 },
 };
 
 static const struct panel_desc cdtech_s101hwx34ed = {
