@@ -2938,6 +2938,38 @@ static const struct panel_desc cdtech_s101hwx34hd = {
 	.connector_type = DRM_MODE_CONNECTOR_LVDS,
 };
 
+static const struct display_timing cdtech_s101hwx34ed_timing = {
+	.pixelclock = { 66300000, 72400000, 78900000 },
+	//.clock = { 66300, 72400, 78900 },
+	.hactive = { 1280, 1280, 1280 },
+	.hfront_porch = { 12, 72, 132 },
+	.hback_porch = { 28, 28, 28 },
+	.hsync_len = { 20, 20, 20 },
+	.vactive = { 800, 800, 800},
+	.vfront_porch = { 1, 15, 49 },
+	.vback_porch = { 3, 3, 3 },
+	.vsync_len = { 10, 10, 10 },
+};
+
+static const struct panel_desc cdtech_s101hwx34ed = {
+	.timings = &cdtech_s101hwx34ed_timing,
+	.num_timings = 1,
+	.bpc = 8,
+	.size = {
+		.width = 217,
+		.height = 136,
+	},
+	//.delay = {
+	//	.prepare = 1000,
+	//	.enable = 1000,
+	//	.unprepare = 1000,
+	//	.disable = 1000,
+	//},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_SPWG,
+	.bus_flags = DRM_BUS_FLAG_DE_HIGH,
+	.connector_type = DRM_MODE_CONNECTOR_LVDS,
+};
+
 static const struct display_timing koe_tx26d202vm0bwa_timing = {
 	.pixelclock = { 151820000, 156720000, 159780000 },
 	.hactive = { 1920, 1920, 1920 },
@@ -4817,7 +4849,10 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "cdtech,s101hwx34hd",
 		.data = &cdtech_s101hwx34hd,
-	}, {}, {
+	}, {
+		.compatible = "cdtech,s101hwx34ed",
+		.data = &cdtech_s101hwx34ed,
+	}, {
 		.compatible = "koe,tx26d202vm0bwa",
 		.data = &koe_tx26d202vm0bwa,
 	}, {

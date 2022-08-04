@@ -23,7 +23,6 @@
             //panel_rgb: panel {
             panel: panel {
               compatible = "cdtech,s101hwx34hd";
-              // compatible = "koe,tx31d200vm0baa";
               // power-supply = <&vdd_panel>;
               status = "okay";
               port {
@@ -57,7 +56,7 @@
                         reg = <0>; // TODO: double-check
                         bridge_dsi_port: endpoint {
                             // data-lanes = <1 2 3 4>;
-                            data-lanes = <0 1>;
+                            data-lanes = <0 1 2>;
                             remote-endpoint = <&dsi_out_port>;
                         };
                     };
@@ -81,7 +80,7 @@
                 dsi_out_port: endpoint {
                     remote-endpoint = <&bridge_dsi_port>;
                     // data-lanes = <0 1 2 3>;
-                    data-lanes = <0 1>;
+                    data-lanes = <0 1 2>;
                 };
             };
         };
