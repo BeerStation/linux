@@ -15,6 +15,8 @@ obj-$(CONFIG_GPIO_ACPI)		+= gpiolib-acpi.o
 obj-$(CONFIG_GPIO_REGMAP)	+= gpio-regmap.o
 obj-$(CONFIG_GPIO_GENERIC)	+= gpio-generic.o
 
+obj-$(CONFIG_TAPS_IO_SAMPLER)	+= io-sampler.o
+
 # directly supported by gpio-generic
 gpio-generic-$(CONFIG_GPIO_GENERIC)	+= gpio-mmio.o
 
