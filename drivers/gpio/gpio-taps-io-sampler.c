@@ -8,7 +8,7 @@
  
 //..............................................................................
 
-#define LKM_NAME "io-sampler"
+#define LKM_NAME "gpio-taps-io-sampler"
 
 // modify and recompile to test different scenarios
 
@@ -177,7 +177,7 @@ int __init io_sampler_init (void)
 #if (USE_RW_IRQ || !USE_GPIO_REGS)
 	int result;
 #endif
-	printk (KERN_INFO LKM_NAME ": --- loading GPIO benchmark test ---\n");
+	printk (KERN_INFO LKM_NAME ": --- loading GPIO taps sampler ---\n");
 
 	
 #if (USE_GPIO_REGS)
@@ -281,11 +281,11 @@ int notify_param(const char *val, const struct kernel_param *kp)
         arr_pulse_count[1] = pulse_count1;
 		arr_pulse_count[2] = pulse_count2;
         if(res==0) {
-                printk(KERN_INFO "Call back function called...\n");
-                printk(KERN_INFO "New value of pulse_count0 = %d\n", pulse_count0);
-				printk(KERN_INFO "New value of pulse_count1 = %d\n", pulse_count1);
-				printk(KERN_INFO "New value of pulse_count2 = %d\n", pulse_count2);
-				printk(KERN_INFO "volatile arr pulse count = %d,%d,%d\n", arr_pulse_count[0],
+                printk(KERN_INFO LKM_NAME "Call back function called...\n");
+                printk(KERN_INFO LKM_NAME "New value of pulse_count0 = %d\n", pulse_count0);
+				printk(KERN_INFO LKM_NAME "New value of pulse_count1 = %d\n", pulse_count1);
+				printk(KERN_INFO LKM_NAME "New value of pulse_count2 = %d\n", pulse_count2);
+				printk(KERN_INFO LKM_NAME "volatile arr pulse count = %d,%d,%d\n", arr_pulse_count[0],
 					arr_pulse_count[1], arr_pulse_count[2]);
 				
                 return 0;
@@ -309,7 +309,7 @@ module_init (io_sampler_init);
 module_exit (io_sampler_exit);
 
 MODULE_LICENSE ("GPL v2");
-MODULE_DESCRIPTION (LKM_NAME " - kernel module to sample io's on Raspberry Pi");
-MODULE_VERSION ("1.3");
+MODULE_DESCRIPTION (LKM_NAME " - kernel module to sample io's on Beerastation taps");
+MODULE_VERSION ("1.4");
 
 //..............................................................................

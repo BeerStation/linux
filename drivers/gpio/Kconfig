@@ -3,7 +3,7 @@
 # GPIO infrastructure and drivers
 #
 
-config TAPS_IO_SAMPLER
+config GPIO_TAPS_IO_SAMPLER
 	tristate "Taps io sampler driver"
 	help
 	  Selecting this config option from the architecture Kconfig allows
