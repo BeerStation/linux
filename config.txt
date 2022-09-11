@@ -76,7 +76,7 @@ otg_mode=1
 dtoverlay=dwc2,dr_mode=host
 #dtoverlay=cdtech-s101hwx34hd
 dtoverlay=vc4-kms-dsi-ti-sn65dsi83
-dtoverlay=disable-wifi
+#dtoverlay=disable-wifi
 dtoverlay=disable-bt
 dtdebug=1
 [all]
