@@ -1,6 +1,6 @@
 #!/bin/bash
 
-BASE_PATH=/media/eyalfish23
+BASE_PATH=/media/spok
 KERNEL=kernel8
 #make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- bcm2711_defconfig
 
@@ -23,7 +23,7 @@ sudo cp arch/arm64/boot/dts/overlays/README $BASE_PATH/boot/overlays/
 echo "copy config file"
 sudo cp $BASE_PATH/boot/config.txt $BASE_PATH/boot/config-backup.txt
 sudo cp config.txt $BASE_PATH/boot/
-sudo sed 's/$/consoleblank=1 logo.nologo quiet loglevel=0 plymouth.enable=0 vt.global_cursor_default=0 plymouth.ignore-serial-consoles splash fastboot noatime nodiratime noram/' $BASE_PATH/boot/cmdline.txt
+sudo sed -i 's/$/ consoleblank=1 logo.nologo quiet loglevel=0 plymouth.enable=0 vt.global_cursor_default=0 plymouth.ignore-serial-consoles splash fastboot noatime nodiratime noram/' $BASE_PATH/boot/cmdline.txt
 
 echo "done!"
 #sudo umount /media/spok/boot
