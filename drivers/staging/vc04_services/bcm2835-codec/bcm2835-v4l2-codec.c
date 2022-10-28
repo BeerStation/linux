@@ -2189,6 +2189,12 @@ static int bcm2835_codec_set_level_profile(struct bcm2835_codec_ctx *ctx,
 		case V4L2_MPEG_VIDEO_H264_LEVEL_4_2:
 			param.level = MMAL_VIDEO_LEVEL_H264_42;
 			break;
+		case V4L2_MPEG_VIDEO_H264_LEVEL_5_0:
+			param.level = MMAL_VIDEO_LEVEL_H264_5;
+			break;
+		case V4L2_MPEG_VIDEO_H264_LEVEL_5_1:
+			param.level = MMAL_VIDEO_LEVEL_H264_51;
+			break;
 		default:
 			/* Should never get here */
 			break;
@@ -2455,11 +2461,6 @@ static int vidioc_decoder_cmd(struct file *file, void *priv,
 static int vidioc_try_encoder_cmd(struct file *file, void *priv,
 				  struct v4l2_encoder_cmd *cmd)
 {
-	struct bcm2835_codec_ctx *ctx = file2ctx(file);
-
-	if (ctx->dev->role != ENCODE && ctx->dev->role != ENCODE_IMAGE)
-		return -EINVAL;
-
 	switch (cmd->cmd) {
 	case V4L2_ENC_CMD_STOP:
 		break;
@@ -3276,7 +3277,7 @@ static int bcm2835_codec_open(struct file *file)
 				  1, 60);
 		v4l2_ctrl_new_std_menu(hdl, &bcm2835_codec_ctrl_ops,
 				       V4L2_CID_MPEG_VIDEO_H264_LEVEL,
-				       V4L2_MPEG_VIDEO_H264_LEVEL_4_2,
+				       V4L2_MPEG_VIDEO_H264_LEVEL_5_1,
 				       ~(BIT(V4L2_MPEG_VIDEO_H264_LEVEL_1_0) |
 					 BIT(V4L2_MPEG_VIDEO_H264_LEVEL_1B) |
 					 BIT(V4L2_MPEG_VIDEO_H264_LEVEL_1_1) |
@@ -3290,7 +3291,9 @@ static int bcm2835_codec_open(struct file *file)
 					 BIT(V4L2_MPEG_VIDEO_H264_LEVEL_3_2) |
 					 BIT(V4L2_MPEG_VIDEO_H264_LEVEL_4_0) |
 					 BIT(V4L2_MPEG_VIDEO_H264_LEVEL_4_1) |
-					 BIT(V4L2_MPEG_VIDEO_H264_LEVEL_4_2)),
+					 BIT(V4L2_MPEG_VIDEO_H264_LEVEL_4_2) |
+					 BIT(V4L2_MPEG_VIDEO_H264_LEVEL_5_0) |
+					 BIT(V4L2_MPEG_VIDEO_H264_LEVEL_5_1)),
 				       V4L2_MPEG_VIDEO_H264_LEVEL_4_0);
 		v4l2_ctrl_new_std_menu(hdl, &bcm2835_codec_ctrl_ops,
 				       V4L2_CID_MPEG_VIDEO_H264_PROFILE,
@@ -3634,8 +3637,6 @@ static int bcm2835_codec_create(struct bcm2835_codec_driver *drv,
 		video_nr = encode_video_nr;
 		break;
 	case ISP:
-		v4l2_disable_ioctl(vfd, VIDIOC_ENCODER_CMD);
-		v4l2_disable_ioctl(vfd, VIDIOC_TRY_ENCODER_CMD);
 		v4l2_disable_ioctl(vfd, VIDIOC_DECODER_CMD);
 		v4l2_disable_ioctl(vfd, VIDIOC_TRY_DECODER_CMD);
 		v4l2_disable_ioctl(vfd, VIDIOC_S_PARM);
@@ -3644,8 +3645,6 @@ static int bcm2835_codec_create(struct bcm2835_codec_driver *drv,
 		video_nr = isp_video_nr;
 		break;
 	case DEINTERLACE:
-		v4l2_disable_ioctl(vfd, VIDIOC_ENCODER_CMD);
-		v4l2_disable_ioctl(vfd, VIDIOC_TRY_ENCODER_CMD);
 		v4l2_disable_ioctl(vfd, VIDIOC_DECODER_CMD);
 		v4l2_disable_ioctl(vfd, VIDIOC_TRY_DECODER_CMD);
 		v4l2_disable_ioctl(vfd, VIDIOC_S_PARM);
